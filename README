@@ -1,0 +1,37 @@
+One SAGA for ALL
+
+Author: Manuel Franceschini <livewire@koltern.com
+Date: December 2010
+
+This project makes SAGA functionality available via Thrift by using Java SAGA
+as a backend to more than a dozen different programming languages. For more
+information see the Master Thesis: One SAGA for All.
+
+To get this up and running you need the following:
+- Java >=1.5
+- Java SAGA and the env variable JAVA_SAGA_LOCATION pointing to it
+- ant
+- thrift >= 0.6, make sure you use the correct path for the thrift libraries
+
+The directory tree explained:
+
+./build.xml
+Ant build file, use 'ant run' to run the server.
+
+./src
+Source directory
+
+./src/client
+All OSfA client code
+
+./src/native
+Native Java SAGA code
+
+./src/pysaga
+PySAGA code
+
+OSfA Server code
+./src/server
+
+OSfA Thrift interface definition
+./src/thrift

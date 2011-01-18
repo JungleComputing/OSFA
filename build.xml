@@ -1,0 +1,156 @@
+<project name="onesagaforall" default="main" basedir=".">
+
+  <description>One SAGA for All</description>
+
+  <property name="src"          value="src"/>
+  <property name="src.thrift"   value="${src}/thrift"/>
+  <property name="src.server"   value="${src}/server"/>
+  <property name="src.misc"   value="${src}/misc"/>
+  <property name="src.native"   value="${src}/native"/>
+  <property name="build"        value="build"/>
+  <property name="build.thrift" value="${build}/thrift"/>
+  <property name="build.server" value="${build}/server"/>
+  <property name="build.jar"    value="${build}/jar"/>
+  <property name="build.misc"    value="${build}/misc"/>
+  <property name="build.native"    value="${build}/native"/>
+  <property name="main-class"   value="org.ogf.saga.thrift.SagaServer"/>
+  <property environment="env"/>
+
+  <path id="thrift">
+    <fileset file="/usr/local/lib/libthrift.jar"/>
+  </path>
+
+  <path id="log4j">
+    <fileset file="${env.JAVA_SAGA_LOCATION}/lib/slf4j-api-1.5.3.jar"/>
+    <fileset file="${env.JAVA_SAGA_LOCATION}/lib/slf4j-log4j12-1.5.3.jar"/>
+    <fileset file="${env.JAVA_SAGA_LOCATION}/lib/log4j-1.2.13.jar"/>
+  </path>
+
+  <target name="clean-thrift">
+    <delete dir="${src.thrift}/gen-java"/>
+    <delete dir="${src.thrift}/gen-py"/>
+    <delete dir="${src.thrift}/gen-php"/>
+    <delete dir="${src.thrift}/gen-cpp"/>
+    <delete dir="${src.thrift}/gen-erl"/>
+  </target>
+
+  <target name="clean" depends="clean-thrift">
+    <delete dir="${build}"/>
+  </target>
+
+  <target name="init">
+    <tstamp/>
+    <mkdir dir="${build}"/>
+    <uptodate property="thrift.gen.notrequired"
+              srcfile="${src.thrift}/saga.thrift"
+              targetfile="${src.thrift}/gen-java/org/ogf/saga/thrift/SAGAService.java"/>
+    <uptodate property="thrift.compile.notrequired"
+              srcfile="${src.thrift}/saga.thrift"
+              targetfile="${build.thrift}/org/ogf/saga/thrift/SAGAService.class"/>
+    <!--<echo message="thrift.notrequired: ${thrift.notrequired}"/>-->
+  </target>
+
+  <target name="thrift" depends="init" unless="thrift.gen.notrequired">
+    <exec dir="${src.thrift}" executable="/usr/local/bin/thrift">
+      <arg line="--gen java saga.thrift"/>
+    </exec>
+    <exec dir="${src.thrift}" executable="/usr/local/bin/thrift">
+      <arg line="--gen py saga.thrift"/>
+    </exec>
+    <exec dir="${src.thrift}" executable="/usr/local/bin/thrift">
+      <arg line="--gen php saga.thrift"/>
+    </exec>
+    <exec dir="${src.thrift}" executable="/usr/local/bin/thrift">
+      <arg line="--gen cpp saga.thrift"/>
+    </exec>
+    <exec dir="${src.thrift}" executable="/usr/local/bin/thrift">
+      <arg line="--gen erl saga.thrift"/>
+    </exec>
+  </target>
+
+  <target name="compile-thrift" depends="thrift" unless="thrift.compile.notrequired">
+    <mkdir dir="${build.thrift}"/>
+    <javac fork="true"
+           srcdir="${src.thrift}"
+           destdir="${build.thrift}"
+           includeantruntime="false"
+           memoryinitialsize="256m"
+           memorymaximumsize="256m">
+      <classpath>
+        <path refid="thrift"/>
+        <path refid="log4j"/>
+      </classpath>
+    </javac>
+  </target>
+
+  <target name="compile" depends="compile-thrift">
+    <mkdir dir="${build.server}"/>
+    <javac srcdir="${src.server}" destdir="${build.server}" includeantruntime="false">
+      <classpath>
+        <path refid="thrift"/>
+        <path location="${build.thrift}"/>
+        <fileset dir="${env.JAVA_SAGA_LOCATION}/lib">
+          <include name="**/*.jar"/>
+        </fileset>
+      </classpath>
+    </javac>
+    <copy todir="${build.server}" file="${src.server}/log4j.properties" />
+  </target>
+
+  <target name="jar" depends="compile">
+    <mkdir dir="${build.jar}"/>
+    <jar destfile="${build.jar}/${ant.project.name}.jar">
+      <fileset dir="${build.thrift}"/>
+      <fileset dir="${build.server}"/>
+      <manifest>
+        <attribute name="Main-Class" value="${main-class}"/>
+      </manifest>
+    </jar>
+  </target>
+
+  <target name="run" depends="jar">
+    <java fork="true"
+          classname="${main-class}"
+          maxmemory="512m">
+      <classpath>
+        <path refid="thrift"/>
+        <path location="${build.jar}/${ant.project.name}.jar"/>
+        <fileset dir="${env.JAVA_SAGA_LOCATION}/lib">
+          <include name="**/*.jar" />
+        </fileset>
+      </classpath>
+      <sysproperty key="java.endorsed.dirs" value="${env.JAVA_SAGA_LOCATION}/lib/adaptors/GridsamAdaptor/endorsed"/>
+      <sysproperty key="log4j.configuration" value="file:${env.JAVA_SAGA_LOCATION}/log4j.properties"/>
+      <sysproperty key="saga.location" value="${env.JAVA_SAGA_LOCATION}"/>
+    </java>
+  </target>
+
+  <target name="compilemisc">
+    <mkdir dir="${build.misc}"/>
+    <javac srcdir="${src.misc}" destdir="${build.misc}" includeantruntime="false">
+      <classpath>
+        <path location="${build.misc}"/>
+        <fileset dir="${env.JAVA_SAGA_LOCATION}/lib">
+          <include name="**/*.jar"/>
+        </fileset>
+      </classpath>
+    </javac>
+  </target>
+
+  <target name="compilenative">
+    <mkdir dir="${build.native}"/>
+    <javac srcdir="${src.native}" destdir="${build.native}" includeantruntime="false">
+      <classpath>
+        <path location="${build.native}"/>
+        <fileset dir="${env.JAVA_SAGA_LOCATION}/lib">
+          <include name="**/*.jar"/>
+        </fileset>
+      </classpath>
+    </javac>
+  </target>
+
+  <target name="main" depends="compile"/>
+  <target name="clean-build" depends="clean,compile"/>
+  <target name="clean-run" depends="clean,run"/>
+
+</project>
